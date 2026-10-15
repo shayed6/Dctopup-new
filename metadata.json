@@ -1,0 +1,8 @@
+{
+  "name": "Remix DC Top Up",
+  "description": "Bangladeshi digital top-up marketplace for game credits, in-game currency, and instant wallet recharge via bKash, Nagad, and Rocket.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
