@@ -53,6 +53,138 @@ export const cleanDisplayTimestamp = (ts?: string): string => {
   return ts.replace(/(:\d{2}):\d{2}/, '$1').replace(/(:[০-৯]{2}):[০-৯]{2}/, '$1');
 };
 
+/**
+ * Recursively removes all keys whose values are undefined.
+ * Guarantees Firestore never rejects objects due to 'Unsupported field value: undefined'.
+ */
+export function removeUndefinedFields<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return (obj as any[]).map((item) => removeUndefinedFields(item)) as unknown as T;
+  }
+  const cleaned: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj as Record<string, any>)) {
+    if (val !== undefined) {
+      if (
+        val !== null &&
+        typeof val === 'object' &&
+        !(val instanceof Date) &&
+        !('nanoseconds' in val) &&
+        !('toMillis' in val)
+      ) {
+        cleaned[key] = removeUndefinedFields(val);
+      } else {
+        cleaned[key] = val;
+      }
+    }
+  }
+  return cleaned as T;
+}
+
+/**
+ * Sanitizes a single package object with safe defaults and zero undefined fields.
+ */
+export function sanitizeTopUpPackage(pkg: Partial<TopUpPackage>, idx: number = 0): TopUpPackage {
+  const name = (pkg.name || '').trim();
+  const rawPrice = Number(pkg.price);
+  const price = isNaN(rawPrice) ? 0 : rawPrice;
+  const amount = (pkg.amount || pkg.diamonds || name || '').trim();
+  const diamonds = (pkg.diamonds || pkg.amount || name || '').trim();
+
+  const sanitizedPkg: TopUpPackage = {
+    id: pkg.id && String(pkg.id).trim() ? String(pkg.id).trim() : `pkg_${Date.now()}_${idx}`,
+    name: name,
+    price: price,
+    amount: amount,
+    diamonds: diamonds,
+    popular: Boolean(pkg.popular),
+    instantDelivery: pkg.instantDelivery !== false,
+    isOutOfStock: Boolean(pkg.isOutOfStock)
+  };
+
+  if (pkg.originalPrice !== undefined && pkg.originalPrice !== null) {
+    const orig = Number(pkg.originalPrice);
+    if (!isNaN(orig) && orig > 0) {
+      sanitizedPkg.originalPrice = orig;
+    }
+  }
+
+  return removeUndefinedFields(sanitizedPkg);
+}
+
+/**
+ * Sanitizes an entire TopUpProduct object with safe defaults and zero undefined fields.
+ */
+export function sanitizeTopUpProduct(
+  product: Partial<TopUpProduct>,
+  existingSortOrder: number = 1
+): TopUpProduct {
+  const id =
+    product.id && String(product.id).trim()
+      ? String(product.id).trim().toLowerCase().replace(/[^a-z0-9_]/g, '_')
+      : 'prod_' + Math.random().toString(36).substring(2, 9);
+
+  const title = (product.title || '').trim();
+  const description = (product.description || '').trim();
+  const fallbackImg = '/images/dc_topup_logo_1790094683501.jpg';
+  const img = (product.image || product.bannerImageUrl || fallbackImg).trim() || fallbackImg;
+  const bannerImg = (product.bannerImageUrl || product.image || img).trim() || fallbackImg;
+  const badgeText = (product.badgeTag || product.badge || '').trim();
+  const sortOrder = Number(product.sortOrder) || existingSortOrder || 1;
+  const category = (product.category as any) || 'gaming';
+  const subCategory = (product.subCategory || 'Special Offer').trim();
+  const playerIdLabel = (product.playerIdLabel || 'Player ID (UID)').trim();
+  const requiresZoneId = Boolean(product.requiresZoneId);
+  const zoneIdLabel = (product.zoneIdLabel || '').trim();
+  const bannerGradient = (product.bannerGradient || 'from-blue-600/30 to-purple-950/40').trim();
+  const isActive = product.isActive !== false;
+  const isOutOfStock = Boolean(product.isOutOfStock);
+
+  // Sanitize packages array
+  const rawPackages = Array.isArray(product.packages) ? product.packages : [];
+  const packages = rawPackages.map((pkg, idx) => sanitizeTopUpPackage(pkg, idx));
+
+  // If packages is empty, provide a fallback starter package with safe defaults
+  const finalPackages =
+    packages.length > 0
+      ? packages
+      : [
+          sanitizeTopUpPackage(
+            {
+              id: `pkg_${Date.now()}_0`,
+              name: title ? `${title} Package` : 'স্ট্যান্ডার্ড প্যাকেজ',
+              amount: '১০০ ডায়মন্ড / পয়েন্ট',
+              price: 100
+            },
+            0
+          )
+        ];
+
+  const sanitized: TopUpProduct = {
+    id,
+    title,
+    description,
+    image: img,
+    bannerImageUrl: bannerImg,
+    badge: badgeText,
+    badgeTag: badgeText,
+    isActive,
+    sortOrder,
+    category,
+    subCategory,
+    playerIdLabel,
+    requiresZoneId,
+    zoneIdLabel,
+    bannerGradient,
+    packages: finalPackages,
+    isOutOfStock
+  };
+
+  return removeUndefinedFields(sanitized);
+}
+
 interface ToastInfo {
   id: string;
   type: 'success' | 'error' | 'info';
@@ -1185,36 +1317,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       for (let i = 0; i < INITIAL_PRODUCTS.length; i++) {
         const p = INITIAL_PRODUCTS[i];
         const docRef = doc(db, 'products', p.id);
-        const data = {
-          id: p.id,
-          title: p.title,
-          description: p.description,
-          bannerImageUrl: p.bannerImageUrl || p.image,
-          image: p.bannerImageUrl || p.image,
-          badgeTag: p.badgeTag || p.badge || 'Special Offer',
-          badge: p.badgeTag || p.badge || 'Special Offer',
-          isActive: p.isActive !== false,
-          sortOrder: typeof p.sortOrder === 'number' ? p.sortOrder : i + 1,
-          category: p.category,
-          subCategory: p.subCategory || '',
-          playerIdLabel: p.playerIdLabel || 'Player ID (UID)',
-          requiresZoneId: !!p.requiresZoneId,
-          zoneIdLabel: p.zoneIdLabel || '',
-          bannerGradient: p.bannerGradient || 'from-blue-600/30 to-purple-950/40',
-          packages: p.packages.map((pkg, idx) => ({
-            id: pkg.id || `pkg_${idx}`,
-            name: pkg.name,
-            amount: pkg.amount || pkg.diamonds || '',
-            diamonds: pkg.diamonds || pkg.amount || '',
-            price: Number(pkg.price),
-            originalPrice: pkg.originalPrice ? Number(pkg.originalPrice) : undefined,
-            popular: !!pkg.popular,
-            instantDelivery: pkg.instantDelivery !== false,
-            isOutOfStock: !!pkg.isOutOfStock
-          })),
-          isOutOfStock: !!p.isOutOfStock,
+        const sanitized = sanitizeTopUpProduct(p, i + 1);
+        const data = removeUndefinedFields({
+          ...sanitized,
           createdAt: serverTimestamp()
-        };
+        });
         await setDoc(docRef, data, { merge: true });
       }
       showToast('সবগুলো প্রোডাক্ট সফলভাবে Firestore "products" কালেকশনে সংরক্ষিত হয়েছে!', 'success');
@@ -1230,48 +1337,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    const id = product.id && product.id.trim()
-      ? product.id.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_')
-      : 'prod_' + Math.random().toString(36).substring(2, 9);
+    if (!product || !product.title || !product.title.trim()) {
+      showToast('প্রোডাক্টের নাম (Title) দেওয়া আবশ্যক।', 'error');
+      return;
+    }
 
-    const bannerImg = product.bannerImageUrl || product.image || '/images/dc_topup_logo_1790094683501.jpg';
-    const badgeText = product.badgeTag || product.badge || '';
+    const rawPackages = Array.isArray(product.packages) ? product.packages : [];
+    if (rawPackages.length > 0) {
+      const hasValidPkg = rawPackages.some(
+        (p) => p && p.name && p.name.trim() && !isNaN(Number(p.price)) && Number(p.price) > 0
+      );
+      if (!hasValidPkg) {
+        showToast('কমপক্ষে একটি প্যাকেজের নাম এবং সঠিক বিক্রয়মূল্য (৳) থাকা আবশ্যক।', 'error');
+        return;
+      }
+    }
 
-    const newProductDoc: TopUpProduct = {
-      ...product,
-      id,
-      title: product.title.trim(),
-      description: product.description.trim(),
-      bannerImageUrl: bannerImg,
-      image: bannerImg,
-      badgeTag: badgeText,
-      badge: badgeText,
-      isActive: product.isActive !== false,
-      sortOrder: product.sortOrder || products.length + 1,
-      category: product.category || 'gaming',
-      subCategory: product.subCategory || 'Special Offer',
-      playerIdLabel: product.playerIdLabel || 'Player ID (UID)',
-      requiresZoneId: !!product.requiresZoneId,
-      zoneIdLabel: product.zoneIdLabel || '',
-      bannerGradient: product.bannerGradient || 'from-blue-600/30 to-purple-950/40',
-      packages: (product.packages || []).map((pkg, idx) => ({
-        id: pkg.id || `pkg_${Date.now()}_${idx}`,
-        name: pkg.name,
-        price: Number(pkg.price),
-        amount: pkg.amount || pkg.diamonds || pkg.name,
-        diamonds: pkg.diamonds || pkg.amount || pkg.name,
-        originalPrice: pkg.originalPrice ? Number(pkg.originalPrice) : undefined,
-        popular: !!pkg.popular,
-        instantDelivery: pkg.instantDelivery !== false,
-        isOutOfStock: !!pkg.isOutOfStock
-      })),
-      isOutOfStock: !!product.isOutOfStock
-    };
+    const sanitizedProduct = sanitizeTopUpProduct(product, products.length + 1);
+    const cleanedDoc = removeUndefinedFields({
+      ...sanitizedProduct,
+      createdAt: serverTimestamp()
+    });
 
     try {
-      await setDoc(doc(db, 'products', id), newProductDoc);
-      setProducts((prev) => [newProductDoc, ...prev.filter((p) => p.id !== id)]);
-      showToast(`নতুন প্রোডাক্ট '${product.title}' সফলভাবে Firestore-এ যোগ করা হয়েছে!`, 'success');
+      await setDoc(doc(db, 'products', cleanedDoc.id), cleanedDoc);
+      setProducts((prev) => [sanitizedProduct, ...prev.filter((p) => p.id !== cleanedDoc.id)]);
+      showToast(`নতুন প্রোডাক্ট '${sanitizedProduct.title}' সফলভাবে Firestore-এ যোগ করা হয়েছে!`, 'success');
     } catch (fsErr: any) {
       console.error('Firestore add product error:', fsErr);
       showToast(`Firestore প্রোডাক্ট যোগে ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
@@ -1284,20 +1375,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    if (!updatedProduct || !updatedProduct.id) {
+      showToast('প্রোডাক্ট আইডি অনুপস্থিত।', 'error');
+      return;
+    }
+
+    if (!updatedProduct.title || !updatedProduct.title.trim()) {
+      showToast('প্রোডাক্টের নাম (Title) দেওয়া আবশ্যক।', 'error');
+      return;
+    }
+
+    const sanitized = sanitizeTopUpProduct(updatedProduct);
+    const cleanedDoc = removeUndefinedFields({
+      ...sanitized,
+      updatedAt: serverTimestamp()
+    });
+
     try {
-      const bannerImg = updatedProduct.bannerImageUrl || updatedProduct.image;
-      const badgeText = updatedProduct.badgeTag || updatedProduct.badge || '';
-      const docData = {
-        ...updatedProduct,
-        bannerImageUrl: bannerImg,
-        image: bannerImg,
-        badgeTag: badgeText,
-        badge: badgeText,
-        updatedAt: serverTimestamp()
-      };
-      await setDoc(doc(db, 'products', updatedProduct.id), docData, { merge: true });
-      setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? { ...p, ...docData } : p)));
-      showToast(`প্রোডাক্ট '${updatedProduct.title}' সরাসরি Firestore-এ আপডেট হয়েছে!`, 'success');
+      await setDoc(doc(db, 'products', updatedProduct.id), cleanedDoc, { merge: true });
+      setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? { ...p, ...sanitized } : p)));
+      showToast(`প্রোডাক্ট '${sanitized.title}' সরাসরি Firestore-এ আপডেট হয়েছে!`, 'success');
     } catch (fsErr: any) {
       console.error('Firestore update product error:', fsErr);
       showToast(`Firestore প্রোডাক্ট আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
@@ -1408,13 +1505,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
+    if (!productId) {
+      showToast('প্রোডাক্ট আইডি অনুপস্থিত।', 'error');
+      return;
+    }
+
+    const safeUrl = (newImageUrl || '').trim() || '/images/dc_topup_logo_1790094683501.jpg';
+
     try {
       await updateDoc(doc(db, 'products', productId), {
-        bannerImageUrl: newImageUrl,
-        image: newImageUrl
+        bannerImageUrl: safeUrl,
+        image: safeUrl
       });
       setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, bannerImageUrl: newImageUrl, image: newImageUrl } : p))
+        prev.map((p) => (p.id === productId ? { ...p, bannerImageUrl: safeUrl, image: safeUrl } : p))
       );
       showToast('প্রোডাক্ট ব্যানার ছবি সরাসরি Firestore-এ আপডেট হয়েছে!', 'success');
     } catch (fsErr: any) {
@@ -1429,24 +1533,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
 
-    const formattedPkgs = packages.map((pkg, idx) => ({
-      id: pkg.id || `pkg_${Date.now()}_${idx}`,
-      name: pkg.name,
-      price: Number(pkg.price),
-      amount: pkg.amount || pkg.diamonds || pkg.name,
-      diamonds: pkg.diamonds || pkg.amount || pkg.name,
-      originalPrice: pkg.originalPrice ? Number(pkg.originalPrice) : undefined,
-      popular: !!pkg.popular,
-      instantDelivery: pkg.instantDelivery !== false,
-      isOutOfStock: !!pkg.isOutOfStock
-    }));
+    if (!productId) {
+      showToast('প্রোডাক্ট আইডি অনুপস্থিত।', 'error');
+      return;
+    }
+
+    const rawList = Array.isArray(packages) ? packages : [];
+    const formattedPkgs = rawList.map((pkg, idx) => sanitizeTopUpPackage(pkg, idx));
+    const cleanedPkgs = removeUndefinedFields(formattedPkgs);
 
     try {
       await updateDoc(doc(db, 'products', productId), {
-        packages: formattedPkgs
+        packages: cleanedPkgs
       });
       setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, packages: formattedPkgs } : p))
+        prev.map((p) => (p.id === productId ? { ...p, packages: cleanedPkgs } : p))
       );
       showToast('প্যাকেজ ও মূল্য তালিকা সরাসরি Firestore-এ আপডেট হয়েছে!', 'success');
     } catch (fsErr: any) {

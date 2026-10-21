@@ -2023,7 +2023,9 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="space-y-3.5 text-xs">
               <div>
-                <label className="text-slate-800 font-bold block mb-1">প্রোডাক্টের নাম (Title) *</label>
+                <label className="text-slate-800 font-bold block mb-1">
+                  প্রোডাক্টের নাম (Title) <span className="text-rose-600 font-black">*</span>
+                </label>
                 <input
                   type="text"
                   value={newProductTitle}
@@ -2034,7 +2036,9 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-slate-800 font-bold block mb-1">প্রোডাক্টের বিবরণ (Description) *</label>
+                <label className="text-slate-800 font-bold block mb-1">
+                  প্রোডাক্টের বিবরণ (Description) <span className="text-slate-500 font-normal">(ঐচ্ছিক)</span>
+                </label>
                 <textarea
                   rows={2}
                   value={newProductDescription}
@@ -2046,7 +2050,9 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-800 font-bold block mb-1">ব্যাজ ট্যাগ (badgeTag) *</label>
+                  <label className="text-slate-800 font-bold block mb-1">
+                    ব্যাজ ট্যাগ (badgeTag) <span className="text-slate-500 font-normal">(ঐচ্ছিক)</span>
+                  </label>
                   <input
                     type="text"
                     value={newProductBadge}
@@ -2057,7 +2063,9 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-slate-800 font-bold block mb-1">সর্ট অর্ডার (sortOrder)</label>
+                  <label className="text-slate-800 font-bold block mb-1">
+                    সর্ট অর্ডার (sortOrder) <span className="text-slate-500 font-normal">(ঐচ্ছিক)</span>
+                  </label>
                   <input
                     type="number"
                     value={newProductSortOrder}
@@ -2070,7 +2078,9 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-800 font-bold block mb-1">ক্যাটেগরি *</label>
+                  <label className="text-slate-800 font-bold block mb-1">
+                    ক্যাটেগরি <span className="text-rose-600 font-black">*</span>
+                  </label>
                   <select
                     value={newProductCategory}
                     onChange={(e: any) => setNewProductCategory(e.target.value)}
@@ -2083,7 +2093,9 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-slate-800 font-bold block mb-1">প্লেয়ার আইডি লেবেল *</label>
+                  <label className="text-slate-800 font-bold block mb-1">
+                    প্লেয়ার আইডি লেবেল <span className="text-slate-500 font-normal">(ঐচ্ছিক)</span>
+                  </label>
                   <input
                     type="text"
                     value={newProductPlayerIdLabel}
@@ -2097,9 +2109,11 @@ export const AdminDashboard: React.FC = () => {
               {/* Image Selection with Presets */}
               <div className="space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-black block">ব্যানার ছবির লিংক (bannerImageUrl) *</span>
+                  <span className="font-extrabold text-black block">
+                    ব্যানার ছবির লিংক (bannerImageUrl) <span className="text-slate-500 font-normal text-[11px]">(ঐচ্ছিক)</span>
+                  </span>
                   <img
-                    src={newProductImageUrl}
+                    src={newProductImageUrl || '/images/dc_topup_logo_1790094683501.jpg'}
                     alt="Preview"
                     className="w-8 h-8 rounded-lg object-cover border border-slate-300"
                     onError={(e) => { (e.target as HTMLImageElement).src = '/dc_logo.jpg'; }}
@@ -2109,7 +2123,7 @@ export const AdminDashboard: React.FC = () => {
                   type="text"
                   value={newProductImageUrl}
                   onChange={(e) => setNewProductImageUrl(e.target.value)}
-                  placeholder="ছবির লিঙ্ক (URL পেস্ট করুন)"
+                  placeholder="ছবির লিঙ্ক (URL পেস্ট করুন অথবা খালি রাখুন)"
                   className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-black"
                 />
 
@@ -2134,7 +2148,9 @@ export const AdminDashboard: React.FC = () => {
               {/* Starter Packages Builder */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-black block">প্যাকেজসমূহ ও বিক্রয়মূল্য (packages)</span>
+                  <span className="font-extrabold text-black block">
+                    প্যাকেজসমূহ ও বিক্রয়মূল্য (packages) <span className="text-rose-600 font-black">*</span>
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
@@ -2156,7 +2172,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="col-span-5">
                         <input
                           type="text"
-                          placeholder="প্যাকেজ নাম"
+                          placeholder="প্যাকেজ নাম *"
                           value={pkg.name}
                           onChange={(e) => {
                             const updated = [...newPackageList];
@@ -2182,7 +2198,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="col-span-2">
                         <input
                           type="number"
-                          placeholder="মূল্য ৳"
+                          placeholder="মূল্য ৳ *"
                           value={pkg.price}
                           onChange={(e) => {
                             const updated = [...newPackageList];
@@ -2213,41 +2229,66 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="flex gap-2 pt-2">
               <button
-                onClick={() => {
-                  if (!newProductTitle.trim()) {
-                    showToast('প্রোডাক্টের নাম লিখুন।', 'error');
+                onClick={async () => {
+                  const trimmedTitle = newProductTitle.trim();
+                  if (!trimmedTitle) {
+                    showToast('প্রোডাক্টের নাম (Title) দেওয়া আবশ্যক।', 'error');
                     return;
                   }
+
+                  if (!newPackageList || newPackageList.length === 0) {
+                    showToast('কমপক্ষে ১টি প্যাকেজ যোগ করা আবশ্যক।', 'error');
+                    return;
+                  }
+
+                  const validPackages = newPackageList.filter(
+                    (p) => p.name && p.name.trim() && !isNaN(Number(p.price)) && Number(p.price) > 0
+                  );
+
+                  if (validPackages.length === 0) {
+                    showToast('কমপক্ষে একটি প্যাকেজের নাম এবং সঠিক বিক্রয়মূল্য (৳) প্রদান করুন।', 'error');
+                    return;
+                  }
+
+                  const safeImg = (newProductImageUrl || '').trim() || '/images/dc_topup_logo_1790094683501.jpg';
+                  const safeBadge = (newProductBadge || '').trim();
+                  const safeDesc = (newProductDescription || '').trim();
+                  const safeSubCat = (newProductSubCategory || '').trim() || 'Special Offer';
+                  const safePlayerId = (newProductPlayerIdLabel || '').trim() || 'Player ID (UID)';
+
                   const newProd: TopUpProduct = {
                     id: 'prod_' + Date.now(),
-                    title: newProductTitle.trim(),
-                    category: newProductCategory,
-                    subCategory: newProductSubCategory.trim() || 'Special Offer',
-                    badge: newProductBadge.trim() || 'Special Offer',
-                    badgeTag: newProductBadge.trim() || 'Special Offer',
-                    description: newProductDescription.trim() || `${newProductTitle.trim()} সরাসরি ${newProductPlayerIdLabel} দিয়ে দ্রুত টপ-আপ করুন।`,
-                    playerIdLabel: newProductPlayerIdLabel.trim() || 'Player ID (UID)',
-                    image: newProductImageUrl.trim() || '/images/ff_friday_offer_1790099054219.jpg',
-                    bannerImageUrl: newProductImageUrl.trim() || '/images/ff_friday_offer_1790099054219.jpg',
+                    title: trimmedTitle,
+                    category: newProductCategory || 'gaming',
+                    subCategory: safeSubCat,
+                    badge: safeBadge,
+                    badgeTag: safeBadge,
+                    description: safeDesc,
+                    playerIdLabel: safePlayerId,
+                    image: safeImg,
+                    bannerImageUrl: safeImg,
                     bannerGradient: 'from-blue-600/30 to-purple-950/60',
                     isActive: true,
                     sortOrder: Number(newProductSortOrder) || (products.length + 1),
                     isOutOfStock: false,
-                    packages: newPackageList.map((p, i) => ({
+                    packages: validPackages.map((p, i) => ({
                       id: 'pkg_' + Date.now() + '_' + i,
                       name: p.name.trim(),
-                      amount: p.amount.trim() || p.name.trim(),
-                      diamonds: p.amount.trim() || p.name.trim(),
+                      amount: (p.amount || '').trim() || p.name.trim(),
+                      diamonds: (p.amount || '').trim() || p.name.trim(),
                       price: Number(p.price) || 0,
-                      popular: p.popular,
-                      instantDelivery: true
+                      popular: Boolean(p.popular),
+                      instantDelivery: true,
+                      isOutOfStock: false
                     }))
                   };
-                  addProduct(newProd);
+
+                  await addProduct(newProd);
                   setShowAddProductModal(false);
                   setNewProductTitle('');
                   setNewProductDescription('');
-                  setNewProductBadge('Special Offer');
+                  setNewProductBadge('');
+                  setNewProductImageUrl('');
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >
@@ -2355,18 +2396,18 @@ export const AdminDashboard: React.FC = () => {
               <button
                 onClick={async () => {
                   if (!editTitle.trim()) {
-                    showToast('প্রোডাক্টের নাম দেওয়া আবশ্যক।', 'error');
+                    showToast('প্রোডাক্টের নাম (Title) দেওয়া আবশ্যক।', 'error');
                     return;
                   }
                   await updateProduct({
                     ...editingDetailsProduct,
                     title: editTitle.trim(),
                     description: editDescription.trim(),
-                    badgeTag: editBadgeTag.trim() || 'Special Offer',
-                    badge: editBadgeTag.trim() || 'Special Offer',
+                    badgeTag: editBadgeTag.trim(),
+                    badge: editBadgeTag.trim(),
                     sortOrder: Number(editSortOrder) || 1,
                     category: editCategory,
-                    subCategory: editSubCategory.trim() || editingDetailsProduct.subCategory,
+                    subCategory: editSubCategory.trim() || editingDetailsProduct.subCategory || 'Special Offer',
                     playerIdLabel: editPlayerIdLabel.trim() || 'Player ID (UID)'
                   });
                   setEditingDetailsProduct(null);
