@@ -178,7 +178,7 @@ export const AddMoneyView: React.FC = () => {
         {/* Video Guide: কিভাবে খুব সহজে ওয়েবসাইটের টাকা এড করবেন */}
         <a
           id="deposit-youtube-tutorial-link"
-          href="https://youtube.com/@badshah_999x"
+          href="https://youtu.be/W7HruTspoJM?si=wGN4h_d7gCDbU7FN"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white transition-all shadow-sm hover:shadow-md cursor-pointer group"

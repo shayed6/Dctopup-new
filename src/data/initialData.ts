@@ -337,16 +337,6 @@ export const INITIAL_BANNERS: HomeBanner[] = [
     isActive: true
   },
   {
-    id: 'banner_wallet',
-    title: 'ডিসি ওয়ালেট রিচার্জ (০% ক্যাশআউট ফি)',
-    subtitle: 'বিকাশ ও নগদে 01806-030750 নম্বরে সেন্ড মানি করে মাত্র ৩ মিনিটে ওয়ালেটে ফান্ড যুক্ত করুন।',
-    imageUrl: '/dc_logo.jpg',
-    badge: '০% ফি রিচার্জ',
-    actionTab: 'deposit',
-    actionText: 'টাকা যোগ করুন',
-    isActive: true
-  },
-  {
     id: 'banner_membership',
     title: 'সাপ্তাহিক ও মাসিক মেম্বারশিপ কম্বো',
     subtitle: 'একসাথে উইকলি ও মান্থলি নিয়ে ৩০০০+ ডায়মন্ড সেভ করুন এক ক্লিকে।',
@@ -354,6 +344,26 @@ export const INITIAL_BANNERS: HomeBanner[] = [
     badge: 'মেগা সেভিং',
     actionTab: 'home',
     actionText: 'প্যাকেজ দেখুন',
+    isActive: true
+  },
+  {
+    id: 'banner_combo',
+    title: 'ফ্রি ফায়ার মেগা কম্বো প্যাক',
+    subtitle: 'একসাথে পেয়ে যান আকর্ষণীয় গিফট বান্ডেল ও ডায়মন্ড বোনাস।',
+    imageUrl: '/images/ff_combo_offer_1790099090251.jpg',
+    badge: 'হট ডিল',
+    actionTab: 'home',
+    actionText: 'কম্বো দেখুন',
+    isActive: true
+  },
+  {
+    id: 'banner_levelup',
+    title: 'লেভেল আপ পাস (Level Up Pass BD)',
+    subtitle: 'লেভেল আপ পাসে পান সর্বোচ্চ ডায়মন্ড সরাসরি আপনার প্লেয়ার আইডিতে।',
+    imageUrl: '/images/ff_levelup_pass_1790099113083.jpg',
+    badge: 'লেভেল আপ',
+    actionTab: 'home',
+    actionText: 'টপ-আপ নিন',
     isActive: true
   },
   {

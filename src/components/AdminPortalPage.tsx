@@ -1,16 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { AdminDashboard } from './AdminDashboard';
-import { ShieldCheck, ArrowLeft, ShieldAlert, LogIn, Loader2 } from 'lucide-react';
+import { AdminDashboard, AdminTabType } from './AdminDashboard';
+import { 
+  ShieldCheck, ArrowLeft, ShieldAlert, LogIn, Loader2,
+  Clock, DollarSign, Package, Image as ImageIcon, Megaphone, ShoppingBag, Users
+} from 'lucide-react';
 
 interface AdminPortalPageProps {
   onExit: () => void;
 }
 
 export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
-  const { currentUser, isAuthReady, setActiveTab } = useApp();
+  const { currentUser, isAuthReady, setActiveTab, banners, deposits } = useApp();
+  const [selectedAdminTab, setSelectedAdminTab] = useState<AdminTabType>('pending_deposits');
 
   const isRoleAdmin = currentUser?.role === 'admin';
+  const pendingDepositsCount = deposits.filter((d) => d.status === 'pending').length;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans">
@@ -48,6 +53,106 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
             </button>
           </div>
         </div>
+
+        {/* Top-Level Quick Tab Navigation Bar for Admin */}
+        {isRoleAdmin && (
+          <div className="border-t border-slate-800 bg-slate-950/80 px-4 sm:px-6 py-2 overflow-x-auto scrollbar-none">
+            <div className="max-w-7xl mx-auto flex items-center gap-1.5 sm:gap-2 text-xs">
+              <button
+                onClick={() => setSelectedAdminTab('pending_deposits')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  selectedAdminTab === 'pending_deposits'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>পেন্ডিং ডিপোজিট</span>
+                {pendingDepositsCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-extrabold">
+                    {pendingDepositsCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setSelectedAdminTab('all_deposits')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  selectedAdminTab === 'all_deposits'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>সব ট্রানজেকশন</span>
+              </button>
+
+              <button
+                onClick={() => setSelectedAdminTab('products')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  selectedAdminTab === 'products'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                <span>প্রোডাক্ট ও প্যাকেজ</span>
+              </button>
+
+              <button
+                id="portal-banners-tab-btn"
+                onClick={() => setSelectedAdminTab('banners')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  selectedAdminTab === 'banners'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs ring-2 ring-amber-400'
+                    : 'bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20'
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                <span>হোম ব্যানার (Banners)</span>
+                <span className="px-1.5 py-0.2 rounded-full bg-slate-900 text-amber-300 text-[10px] font-bold border border-amber-400/30">
+                  {banners.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setSelectedAdminTab('notices')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  selectedAdminTab === 'notices'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Megaphone className="w-3.5 h-3.5" />
+                <span>জরুরি নোটিশ</span>
+              </button>
+
+              <button
+                onClick={() => setSelectedAdminTab('orders')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  selectedAdminTab === 'orders'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>অর্ডার কিউ</span>
+              </button>
+
+              <button
+                onClick={() => setSelectedAdminTab('users')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+                  selectedAdminTab === 'users'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>ইউজার ও ব্যালেন্স</span>
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Main Admin Content */}
@@ -124,7 +229,10 @@ export const AdminPortalPage: React.FC<AdminPortalPageProps> = ({ onExit }) => {
         ) : (
           /* Live Synchronized Admin Dashboard strictly for role === 'admin' */
           <div className="space-y-6">
-            <AdminDashboard />
+            <AdminDashboard 
+              activeTab={selectedAdminTab} 
+              onTabChange={setSelectedAdminTab} 
+            />
           </div>
         )}
       </main>

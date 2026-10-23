@@ -218,6 +218,7 @@ interface AppContextType {
   banners: HomeBanner[];
   addBanner: (banner: HomeBanner) => Promise<void>;
   updateBanner: (banner: HomeBanner) => Promise<void>;
+  updateBannerImage: (bannerId: string, newImageUrl: string) => Promise<void>;
   deleteBanner: (bannerId: string) => Promise<void>;
   reorderBanners: (startIndex: number, endIndex: number) => Promise<void>;
   saveAllBanners: (newBanners: HomeBanner[]) => Promise<void>;
@@ -307,17 +308,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [banners, setBanners] = useState<HomeBanner[]>(() => {
     const ver = localStorage.getItem('dc_banners_ver');
-    if (ver === 'v9_remove_old_phone') {
+    if (ver === 'v10_clean_image_banners') {
       const saved = localStorage.getItem('dc_banners');
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const clean = parsed.filter(
+              (b: any) =>
+                b &&
+                b.id !== 'banner_wallet' &&
+                !(b.title && b.title.includes('ডিসি ওয়ালেট রিচার্জ')) &&
+                !(b.subtitle && b.subtitle.includes('01845'))
+            );
+            if (clean.length > 0) return clean;
+          }
         } catch (e) {
           // fallback
         }
       }
     }
-    localStorage.setItem('dc_banners_ver', 'v9_remove_old_phone');
+    localStorage.setItem('dc_banners_ver', 'v10_clean_image_banners');
     localStorage.setItem('dc_banners', JSON.stringify(INITIAL_BANNERS));
     return INITIAL_BANNERS;
   });
@@ -594,7 +605,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // Real-time Firestore sync for siteConfig/homepage (banners & notice)
+  // Real-time Firestore sync for dedicated 'banners' collection
+  useEffect(() => {
+    try {
+      const bannersColRef = collection(db, 'banners');
+      const unsub = onSnapshot(bannersColRef, async (snap) => {
+        if (!snap.empty) {
+          const loadedBanners: HomeBanner[] = [];
+          snap.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (
+              docSnap.id === 'banner_wallet' ||
+              (data.title && data.title.includes('ডিসি ওয়ালেট রিচার্জ')) ||
+              (data.subtitle && data.subtitle.includes('01845'))
+            ) {
+              return;
+            }
+            loadedBanners.push({
+              id: docSnap.id,
+              title: data.title || '',
+              subtitle: data.subtitle || '',
+              imageUrl: data.imageUrl || '/images/ff_friday_offer_1790099054219.jpg',
+              linkUrl: data.linkUrl || '',
+              badge: data.badge || '',
+              actionTab: data.actionTab || 'home',
+              actionText: data.actionText || 'অফার দেখুন',
+              isActive: data.isActive !== false
+            });
+          });
+
+          if (loadedBanners.length > 0) {
+            setBanners(loadedBanners);
+          }
+        } else {
+          // Auto-seed banners collection in Firestore if empty
+          INITIAL_BANNERS.forEach(async (b, idx) => {
+            try {
+              await setDoc(doc(db, 'banners', b.id), {
+                id: b.id,
+                title: b.title,
+                subtitle: b.subtitle || '',
+                imageUrl: b.imageUrl,
+                linkUrl: b.linkUrl || '',
+                badge: b.badge || '',
+                actionTab: b.actionTab || 'home',
+                actionText: b.actionText || 'অফার দেখুন',
+                isActive: b.isActive !== false,
+                sortOrder: idx,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+              }, { merge: true });
+            } catch (seedErr) {
+              console.warn('Auto seed banner collection error:', seedErr);
+            }
+          });
+        }
+      }, (err) => {
+        console.warn('Firestore banners collection listener note:', err);
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('Firestore banners subscription error:', e);
+    }
+  }, []);
+
+  // Real-time Firestore sync for siteConfig/homepage (announcement notice fallback)
   useEffect(() => {
     try {
       const siteConfigRef = doc(db, 'siteConfig', 'homepage');
@@ -611,21 +686,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               isActive: data.notice.isActive !== false
             });
           }
-          if (Array.isArray(data.banners) && data.banners.length > 0) {
-            setBanners(data.banners.map((b: any, idx: number) => ({
-              id: b.id || `banner_${idx}`,
-              title: b.title || '',
-              subtitle: b.subtitle || '',
-              imageUrl: b.imageUrl || '/dc_logo.jpg',
-              linkUrl: b.linkUrl || '',
-              badge: b.badge || 'অফার',
-              actionTab: b.actionTab || 'deposit',
-              actionText: b.actionText || 'টাকা যোগ করুন',
-              isActive: b.isActive !== false
-            })));
-          }
         } else {
-          // If document does not exist yet in Firestore, seed with initial banners & notice
           try {
             await setDoc(siteConfigRef, {
               notice: {
@@ -634,21 +695,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 isActive: INITIAL_NOTICE.isActive,
                 type: INITIAL_NOTICE.type || 'offer'
               },
-              banners: INITIAL_BANNERS.map((b) => ({
-                id: b.id,
-                imageUrl: b.imageUrl,
-                title: b.title,
-                subtitle: b.subtitle || '',
-                linkUrl: b.linkUrl || '',
-                badge: b.badge || '',
-                actionTab: b.actionTab || 'deposit',
-                actionText: b.actionText || 'টাকা যোগ করুন',
-                isActive: b.isActive !== false
-              })),
               updatedAt: serverTimestamp()
             }, { merge: true });
           } catch (seedErr) {
-            console.warn('Auto seed siteConfig note (will persist when admin saves):', seedErr);
+            console.warn('Auto seed siteConfig notice note:', seedErr);
           }
         }
       }, (err) => {
@@ -1602,6 +1652,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBanners(newBanners);
 
     try {
+      // 1. Write each banner to dedicated 'banners' collection in Firestore
+      for (let idx = 0; idx < newBanners.length; idx++) {
+        const b = newBanners[idx];
+        const bannerDocRef = doc(db, 'banners', b.id);
+        await setDoc(bannerDocRef, removeUndefinedFields({
+          id: b.id,
+          title: b.title || '',
+          subtitle: b.subtitle || '',
+          imageUrl: b.imageUrl || '/images/ff_friday_offer_1790099054219.jpg',
+          linkUrl: b.linkUrl || '',
+          badge: b.badge || '',
+          actionTab: b.actionTab || 'home',
+          actionText: b.actionText || 'অফার দেখুন',
+          isActive: b.isActive !== false,
+          sortOrder: idx,
+          updatedAt: serverTimestamp()
+        }), { merge: true });
+      }
+
+      // 2. Also keep siteConfig mirror in sync
       await setDoc(doc(db, 'siteConfig', 'homepage'), {
         banners: newBanners.map((b) => ({
           id: b.id,
@@ -1610,12 +1680,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           imageUrl: b.imageUrl,
           linkUrl: b.linkUrl || '',
           badge: b.badge || '',
-          actionTab: b.actionTab || 'deposit',
-          actionText: b.actionText || 'টাকা যোগ করুন',
+          actionTab: b.actionTab || 'home',
+          actionText: b.actionText || 'অফার দেখুন',
           isActive: b.isActive !== false
         }))
       }, { merge: true });
-      showToast('ব্যানার তালিকা সরাসরি Firestore siteConfig-এ সংরক্ষিত হয়েছে!', 'success');
+
+      showToast('ব্যানার তালিকা সরাসরি Firestore "banners" কালেকশনে সংরক্ষিত হয়েছে!', 'success');
     } catch (fsErr: any) {
       console.error('Firestore save banners error:', fsErr);
       showToast(`Firestore ব্যানার আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
@@ -1623,18 +1694,111 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addBanner = async (banner: HomeBanner) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ব্যানার যোগ করতে পারেন।', 'error');
+      return;
+    }
+
     const updated = [banner, ...banners];
-    await saveAllBanners(updated);
+    setBanners(updated);
+
+    try {
+      // Save directly to 'banners' collection in Firestore
+      await setDoc(doc(db, 'banners', banner.id), removeUndefinedFields({
+        id: banner.id,
+        title: banner.title || '',
+        subtitle: banner.subtitle || '',
+        imageUrl: banner.imageUrl || '/images/ff_friday_offer_1790099054219.jpg',
+        linkUrl: banner.linkUrl || '',
+        badge: banner.badge || '',
+        actionTab: banner.actionTab || 'home',
+        actionText: banner.actionText || 'অফার দেখুন',
+        isActive: banner.isActive !== false,
+        sortOrder: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }), { merge: true });
+
+      showToast('নতুন ব্যানার Firestore "banners" কালেকশনে যুক্ত হয়েছে!', 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore addBanner error:', fsErr);
+      showToast(`ব্যানার যোগ ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
   const updateBanner = async (updatedBanner: HomeBanner) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ব্যানার সম্পাদনা করতে পারেন।', 'error');
+      return;
+    }
+
     const updated = banners.map((b) => (b.id === updatedBanner.id ? updatedBanner : b));
-    await saveAllBanners(updated);
+    setBanners(updated);
+
+    try {
+      await setDoc(doc(db, 'banners', updatedBanner.id), removeUndefinedFields({
+        id: updatedBanner.id,
+        title: updatedBanner.title || '',
+        subtitle: updatedBanner.subtitle || '',
+        imageUrl: updatedBanner.imageUrl || '/images/ff_friday_offer_1790099054219.jpg',
+        linkUrl: updatedBanner.linkUrl || '',
+        badge: updatedBanner.badge || '',
+        actionTab: updatedBanner.actionTab || 'home',
+        actionText: updatedBanner.actionText || 'অফার দেখুন',
+        isActive: updatedBanner.isActive !== false,
+        updatedAt: serverTimestamp()
+      }), { merge: true });
+
+      showToast('ব্যানার Firestore "banners" কালেকশনে আপডেট হয়েছে!', 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore updateBanner error:', fsErr);
+      showToast(`ব্যানার আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
+  };
+
+  const updateBannerImage = async (bannerId: string, newImageUrl: string) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ব্যানার ছবি পরিবর্তন করতে পারেন।', 'error');
+      return;
+    }
+
+    if (!bannerId) {
+      showToast('ব্যানার আইডি পাওয়া যায়নি।', 'error');
+      return;
+    }
+
+    const safeUrl = (newImageUrl || '').trim() || '/images/ff_friday_offer_1790099054219.jpg';
+    const updated = banners.map((b) => (b.id === bannerId ? { ...b, imageUrl: safeUrl } : b));
+    setBanners(updated);
+
+    try {
+      await updateDoc(doc(db, 'banners', bannerId), {
+        imageUrl: safeUrl,
+        updatedAt: serverTimestamp()
+      });
+      showToast('ব্যানার ছবি সরাসরি Firestore "banners" কালেকশনে আপডেট হয়েছে!', 'success');
+    } catch (fsErr: any) {
+      console.error('Firestore updateBannerImage error:', fsErr);
+      showToast(`Firestore ব্যানার ছবি আপডেট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
   const deleteBanner = async (bannerId: string) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      showToast('অননুমোদিত: শুধুমাত্র role: "admin" ব্যবহারকারীরা ব্যানার মুছতে পারেন।', 'error');
+      return;
+    }
+
     const updated = banners.filter((b) => b.id !== bannerId);
-    await saveAllBanners(updated);
+    setBanners(updated);
+
+    try {
+      await deleteDoc(doc(db, 'banners', bannerId));
+      showToast('ব্যানার Firestore "banners" কালেকশন থেকে মুছে ফেলা হয়েছে!', 'info');
+    } catch (fsErr: any) {
+      console.error('Firestore deleteBanner error:', fsErr);
+      showToast(`ব্যানার ডিলিট ত্রুটি: ${fsErr?.message || 'অনুমতি নেই'}`, 'error');
+    }
   };
 
   const reorderBanners = async (startIndex: number, endIndex: number) => {
@@ -1804,6 +1968,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         banners,
         addBanner,
         updateBanner,
+        updateBannerImage,
         deleteBanner,
         reorderBanners,
         saveAllBanners,

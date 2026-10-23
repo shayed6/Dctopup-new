@@ -9,10 +9,17 @@ import {
   Search, Copy, Check, DollarSign, RefreshCw, Image as ImageIcon,
   Megaphone, Flame, Info, AlertTriangle, Sparkles, ExternalLink,
   ArrowRight, Tag, Eye, EyeOff, CheckSquare, Lock, ShieldAlert, Edit3, Database,
-  UserX, UserCheck, ArrowUp, ArrowDown, Wallet, Ban
+  UserX, UserCheck, ArrowUp, ArrowDown, Wallet, Ban, Upload
 } from 'lucide-react';
 
-export const AdminDashboard: React.FC = () => {
+export type AdminTabType = 'pending_deposits' | 'all_deposits' | 'products' | 'banners' | 'notices' | 'orders' | 'users';
+
+export interface AdminDashboardProps {
+  activeTab?: AdminTabType;
+  onTabChange?: (tab: AdminTabType) => void;
+}
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ activeTab, onTabChange }) => {
   const { 
     deposits, 
     orders, 
@@ -35,6 +42,7 @@ export const AdminDashboard: React.FC = () => {
     banners,
     addBanner,
     updateBanner,
+    updateBannerImage,
     deleteBanner,
     reorderBanners,
     saveAllBanners,
@@ -45,9 +53,14 @@ export const AdminDashboard: React.FC = () => {
     currentUser
   } = useApp();
 
-  const [currentAdminTab, setCurrentAdminTab] = useState<
-    'pending_deposits' | 'all_deposits' | 'products' | 'notices_banners' | 'orders' | 'users'
-  >('pending_deposits');
+  const [internalAdminTab, setInternalAdminTab] = useState<AdminTabType>('pending_deposits');
+  const currentAdminTab = activeTab || internalAdminTab;
+  const setCurrentAdminTab = (tab: AdminTabType) => {
+    setInternalAdminTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
 
   // Reject deposit modal state
   const [rejectingDeposit, setRejectingDeposit] = useState<DepositRequest | null>(null);
@@ -58,6 +71,31 @@ export const AdminDashboard: React.FC = () => {
   // Product Image change modal state
   const [editingImageProduct, setEditingImageProduct] = useState<TopUpProduct | null>(null);
   const [customImageUrl, setCustomImageUrl] = useState('');
+
+  // Banner Image change modal state
+  const [editingImageBanner, setEditingImageBanner] = useState<HomeBanner | null>(null);
+  const [bannerCustomImageUrl, setBannerCustomImageUrl] = useState('');
+
+  // Helper for file uploading from device
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      showToast('ছবির সাইজ সর্বোচ্চ ৩ মেগাবাইট (3MB) হওয়া উচিত।', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setter(reader.result);
+        showToast('ছবি সফলভাবে লোড হয়েছে!', 'success');
+      }
+    };
+    reader.onerror = () => {
+      showToast('ছবি রিড করতে ব্যর্থ হয়েছে।', 'error');
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Edit existing product full metadata state
   const [editingDetailsProduct, setEditingDetailsProduct] = useState<TopUpProduct | null>(null);
@@ -367,16 +405,32 @@ export const AdminDashboard: React.FC = () => {
           </button>
 
           <button
-            id="admin-tab-notices-banners-btn"
-            onClick={() => setCurrentAdminTab('notices_banners')}
+            id="admin-tab-banners-btn"
+            onClick={() => setCurrentAdminTab('banners')}
             className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-              currentAdminTab === 'notices_banners'
+              currentAdminTab === 'banners'
+                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                : 'text-black hover:bg-slate-200'
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>হোম ব্যানার (Banners)</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-slate-900 text-white text-[10px] font-bold">
+              {banners.length}
+            </span>
+          </button>
+
+          <button
+            id="admin-tab-notices-btn"
+            onClick={() => setCurrentAdminTab('notices')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              currentAdminTab === 'notices'
                 ? 'bg-black text-white shadow-xs'
                 : 'text-black hover:bg-slate-200'
             }`}
           >
             <Megaphone className="w-3.5 h-3.5" />
-            <span>Site Content (নোটিশ ও ব্যানার) ({banners.length})</span>
+            <span>জরুরি নোটিশ</span>
           </button>
 
           <button
@@ -723,6 +777,17 @@ export const AdminDashboard: React.FC = () => {
                   </button>
                 )}
 
+                {/* Manage Banners Shortcut */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentAdminTab('banners')}
+                  className="px-3.5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  title="হোমপেজের ব্যানার ছবি ও স্লাইডার পরিচালনা করুন"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>হোমপেজ ব্যানার ম্যানেজ</span>
+                </button>
+
                 {/* Add New Product Button */}
                 <button
                   id="admin-add-product-btn"
@@ -1046,9 +1111,9 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Tab 4: Notices & Banners Management */}
-        {currentAdminTab === 'notices_banners' && (
-          <div className="p-4 sm:p-5 space-y-8">
+        {/* Tab 4: Emergency Notice Management */}
+        {currentAdminTab === 'notices' && (
+          <div className="p-4 sm:p-5 space-y-6">
             {/* Section 1: Homepage Announcement Notice */}
             <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
@@ -1236,29 +1301,61 @@ export const AdminDashboard: React.FC = () => {
                 <span>নোটিশ সেভ ও প্রকাশ করুন</span>
               </button>
             </div>
+          </div>
+        )}
 
-            {/* Section 2: Promotional Banners Manager */}
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
+        {/* Tab 5: Dedicated Promotional Banners Manager (Firestore 'banners' collection) */}
+        {currentAdminTab === 'banners' && (
+          <div className="p-4 sm:p-5 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
                   <h3 className="font-extrabold text-base text-black flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <ImageIcon className="w-5 h-5 text-amber-500" />
                     <span>হোমপেজ ব্যানার ম্যানেজমেন্ট (Hero Slider Banners)</span>
                   </h3>
-                  <p className="text-xs text-slate-800 font-medium">
-                    হোমপেজের স্লাইডারে প্রদর্শিত প্রমোশনাল ব্যানার যোগ, সচল/বন্ধ অথবা রিমুভ করুন।
-                  </p>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Firestore 'banners' কালেকশন সংযুক্ত</span>
+                  </span>
                 </div>
-
-                <button
-                  id="admin-add-banner-btn"
-                  onClick={() => setShowAddBannerModal(true)}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all self-start sm:self-auto shadow-md cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>নতুন ব্যানার যোগ করুন</span>
-                </button>
+                <p className="text-xs text-slate-600 font-medium mt-0.5">
+                  হোমপেজের স্লাইডারে ব্যানার ছবি আপলোড করুন, নতুন ব্যানার যোগ করুন বা ক্রম পরিবর্তন করুন। সমস্ত ডেটা সরাসরি Firestore <code className="font-mono bg-slate-100 px-1 py-0.5 rounded font-bold">banners</code> কালেকশনে সেভ ও ফেচ হয়।
+                </p>
               </div>
+
+              <button
+                id="admin-add-banner-btn"
+                onClick={() => setShowAddBannerModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 transition-all self-start sm:self-auto shadow-sm cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>নতুন ব্যানার যোগ করুন</span>
+              </button>
+            </div>
+
+            {/* Quick Upload Banner Image Box */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <span className="font-extrabold text-xs text-black block flex items-center gap-1.5">
+                <Upload className="w-4 h-4 text-blue-600" />
+                <span>কম্পিউটার বা মোবাইল থেকে নতুন ব্যানার ছবি আপলোড করুন:</span>
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  handleImageFileUpload(e, (uploadedUrl) => {
+                    setNewBannerImageUrl(uploadedUrl);
+                    setShowAddBannerModal(true);
+                    showToast('ছবি লোড সম্পন্ন! ব্যানার শিরোনাম ও অ্যাকশন লিখে সেভ করুন।', 'success');
+                  });
+                }}
+                className="w-full text-xs text-slate-700 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-black file:text-white hover:file:bg-slate-800 cursor-pointer border border-dashed border-slate-300 rounded-xl p-2.5 bg-white shadow-2xs"
+              />
+            </div>
+
+            {/* Banners Grid Container */}
+            <div className="space-y-4">
 
               {/* Banners Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1270,14 +1367,14 @@ export const AdminDashboard: React.FC = () => {
                     }`}
                   >
                     {/* Visual Banner Preview Card */}
-                    <div className="relative h-32 rounded-xl overflow-hidden bg-slate-900 border border-slate-300">
+                    <div className="relative h-36 rounded-xl overflow-hidden bg-slate-900 border border-slate-300 group">
                       <SafeImage
                         src={b.imageUrl}
                         alt={b.title}
                         title={b.title}
-                        className="w-full h-full object-cover opacity-60"
+                        className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent p-3 flex flex-col justify-between text-white">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent p-3 flex flex-col justify-between text-white pointer-events-none">
                         <div>
                           {b.badge && (
                             <span className="px-2 py-0.5 rounded-full bg-amber-400 text-black text-[9px] font-extrabold uppercase">
@@ -1301,6 +1398,20 @@ export const AdminDashboard: React.FC = () => {
                           </span>
                         </div>
                       </div>
+
+                      {/* Direct Click/Hover Overlay to Change Banner Image */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingImageBanner(b);
+                          setBannerCustomImageUrl(b.imageUrl);
+                        }}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer z-10"
+                        title="এই ব্যানারের ছবি পরিবর্তন করুন"
+                      >
+                        <ImageIcon className="w-5 h-5 text-amber-300 mb-1" />
+                        <span className="text-xs font-extrabold">ব্যানার ছবি পরিবর্তন করুন</span>
+                      </button>
                     </div>
 
                     {/* Banner Info Details */}
@@ -1353,6 +1464,19 @@ export const AdminDashboard: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingImageBanner(b);
+                            setBannerCustomImageUrl(b.imageUrl);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                          title="ব্যানার ছবি পরিবর্তন"
+                        >
+                          <ImageIcon className="w-3.5 h-3.5 text-amber-600" />
+                          <span>ছবি পাল্টান</span>
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => {
@@ -1763,9 +1887,23 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
+            {/* Device File Upload Option */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+              <span className="font-extrabold text-black block flex items-center gap-1.5">
+                <Upload className="w-3.5 h-3.5 text-blue-600" />
+                <span>কম্পিউটার বা মোবাইল থেকে ছবি আপলোড করুন:</span>
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageFileUpload(e, setCustomImageUrl)}
+                className="w-full text-xs text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-extrabold file:bg-black file:text-white hover:file:bg-slate-800 cursor-pointer"
+              />
+            </div>
+
             {/* Custom URL Input */}
             <div className="space-y-1 text-xs">
-              <label className="text-slate-800 font-bold block">কাস্টম ইমেজ লিংক (URL):</label>
+              <label className="text-slate-800 font-bold block">অথবা কাস্টম ইমেজ লিংক (URL):</label>
               <input
                 type="text"
                 value={customImageUrl}
@@ -1819,6 +1957,125 @@ export const AdminDashboard: React.FC = () => {
               </button>
               <button
                 onClick={() => setEditingImageProduct(null)}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
+              >
+                বাতিল
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Banner Image Changer Modal (Same intuitive UI as Product Image changer) */}
+      {editingImageBanner && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-300 rounded-2xl p-5 space-y-4 animate-in fade-in shadow-2xl text-black">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-amber-500" />
+                <h3 className="font-extrabold text-sm text-black">
+                  ব্যানার ছবি পরিবর্তন করুন ({editingImageBanner.title || 'হোমপেজ ব্যানার'})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingImageBanner(null)}
+                className="text-xs text-black font-bold hover:bg-slate-200 px-2 py-1 bg-slate-100 border border-slate-300 rounded cursor-pointer"
+              >
+                বন্ধ
+              </button>
+            </div>
+
+            {/* Live Banner Preview */}
+            <div className="space-y-1.5">
+              <span className="font-extrabold text-black text-xs block">বর্তমান ব্যানার প্রিভিউ:</span>
+              <div className="relative w-full h-36 rounded-xl overflow-hidden bg-slate-900 border border-slate-300 shadow-sm">
+                <img
+                  src={bannerCustomImageUrl || editingImageBanner.imageUrl}
+                  alt="Banner Preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/images/ff_friday_offer_1790099054219.jpg'; }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex items-end p-3">
+                  <span className="text-white font-extrabold text-xs drop-shadow-sm truncate">
+                    {editingImageBanner.title}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Device File Upload Option */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+              <span className="font-extrabold text-black block flex items-center gap-1.5">
+                <Upload className="w-3.5 h-3.5 text-blue-600" />
+                <span>কম্পিউটার বা মোবাইল থেকে ছবি আপলোড করুন:</span>
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageFileUpload(e, setBannerCustomImageUrl)}
+                className="w-full text-xs text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-extrabold file:bg-black file:text-white hover:file:bg-slate-800 cursor-pointer"
+              />
+            </div>
+
+            {/* Custom URL Input */}
+            <div className="space-y-1 text-xs">
+              <label className="text-slate-800 font-bold block">অথবা ছবির সরাসরি লিংক (URL):</label>
+              <input
+                type="text"
+                value={bannerCustomImageUrl}
+                onChange={(e) => setBannerCustomImageUrl(e.target.value)}
+                placeholder="https://... অথবা /images/ff_friday_offer_1790099054219.jpg"
+                className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs text-xs"
+              />
+            </div>
+
+            {/* Preset Images Gallery */}
+            <div className="space-y-1.5 text-xs">
+              <label className="text-slate-800 font-bold block">
+                বা প্রস্তুতকৃত আর্টওয়ার্ক থেকে ১-ক্লিকে নির্বাচন করুন:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-44 overflow-y-auto p-1.5 border border-slate-200 rounded-xl bg-slate-50">
+                {PRESET_PRODUCT_IMAGES.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setBannerCustomImageUrl(preset.url)}
+                    className={`p-1.5 rounded-lg border text-left flex items-center gap-2 cursor-pointer transition-all ${
+                      bannerCustomImageUrl === preset.url
+                        ? 'border-black bg-white ring-2 ring-black'
+                        : 'border-slate-300 bg-white hover:bg-slate-100'
+                    }`}
+                  >
+                    <SafeImage
+                      src={preset.url}
+                      alt={preset.label}
+                      className="w-8 h-8 rounded-md object-cover border border-slate-200 shrink-0"
+                    />
+                    <span className="text-[10px] font-bold text-black truncate">{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!bannerCustomImageUrl.trim()) {
+                    showToast('অনুগ্রহ করে সঠিক ছবির লিংক দিন বা প্রিসেট বেছে নিন।', 'error');
+                    return;
+                  }
+                  await updateBannerImage(editingImageBanner.id, bannerCustomImageUrl.trim());
+                  setEditingImageBanner(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs transition-colors cursor-pointer shadow-xs"
+              >
+                ব্যানার ছবি সংরক্ষণ করুন
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingImageBanner(null)}
                 className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold cursor-pointer"
               >
                 বাতিল
@@ -2106,30 +2363,45 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Image Selection with Presets */}
+              {/* Image Selection with Presets & Device Upload */}
               <div className="space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200 shadow-xs">
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-black block">
-                    ব্যানার ছবির লিংক (bannerImageUrl) <span className="text-slate-500 font-normal text-[11px]">(ঐচ্ছিক)</span>
+                    প্রোডাক্ট ব্যানার ছবি <span className="text-slate-500 font-normal text-[11px]">(ঐচ্ছিক)</span>
                   </span>
                   <img
                     src={newProductImageUrl || '/images/dc_topup_logo_1790094683501.jpg'}
                     alt="Preview"
-                    className="w-8 h-8 rounded-lg object-cover border border-slate-300"
+                    className="w-10 h-10 rounded-lg object-cover border border-slate-300 shadow-xs"
                     onError={(e) => { (e.target as HTMLImageElement).src = '/dc_logo.jpg'; }}
                   />
                 </div>
+
+                {/* Upload from Device */}
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-bold text-slate-800 flex items-center gap-1 shrink-0">
+                    <Upload className="w-3 h-3 text-blue-600" />
+                    <span>ডিভাইস থেকে ছবি:</span>
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageFileUpload(e, setNewProductImageUrl)}
+                    className="w-full text-[10px] text-slate-700 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-[10px] file:font-extrabold file:bg-slate-200 file:text-black hover:file:bg-slate-300 cursor-pointer"
+                  />
+                </div>
+
                 <input
                   type="text"
                   value={newProductImageUrl}
                   onChange={(e) => setNewProductImageUrl(e.target.value)}
-                  placeholder="ছবির লিঙ্ক (URL পেস্ট করুন অথবা খালি রাখুন)"
+                  placeholder="বা ছবির লিঙ্ক পেস্ট করুন (URL)"
                   className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-black"
                 />
 
                 <span className="text-[10px] text-slate-700 font-bold block">বা প্রস্তুতকৃত ছবি থেকে বেছে নিন:</span>
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                  {PRESET_PRODUCT_IMAGES.slice(0, 8).map((p, idx) => (
+                  {PRESET_PRODUCT_IMAGES.map((p, idx) => (
                     <button
                       key={idx}
                       type="button"
@@ -2430,7 +2702,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Add New Banner Modal */}
       {showAddBannerModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white border border-slate-300 rounded-2xl p-5 space-y-4 animate-in fade-in shadow-2xl text-black">
+          <div className="w-full max-w-lg bg-white border border-slate-300 rounded-2xl p-5 space-y-4 animate-in fade-in shadow-2xl text-black max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="font-extrabold text-base text-black flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-500" />
@@ -2445,8 +2717,91 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-3 text-xs">
+              {/* Live Banner Preview */}
+              <div className="space-y-1.5">
+                <span className="font-extrabold text-black block">ব্যানার লাইভ প্রিভিউ:</span>
+                <div className="relative w-full h-32 rounded-xl overflow-hidden bg-slate-900 border border-slate-300 shadow-sm">
+                  <img
+                    src={newBannerImageUrl || '/images/ff_friday_offer_1790099054219.jpg'}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/images/ff_friday_offer_1790099054219.jpg'; }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent p-3 flex flex-col justify-between text-white pointer-events-none">
+                    <div>
+                      {newBannerBadge && (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-400 text-black text-[9px] font-extrabold uppercase">
+                          {newBannerBadge}
+                        </span>
+                      )}
+                      <h4 className="font-extrabold text-sm text-white mt-1 line-clamp-1">
+                        {newBannerTitle || 'ব্যানার শিরোনাম'}
+                      </h4>
+                      {newBannerSubtitle && (
+                        <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">
+                          {newBannerSubtitle}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <span className="px-2 py-0.5 rounded bg-white text-black text-[9px] font-extrabold inline-flex items-center gap-1">
+                        <span>{newBannerActionText || 'বিস্তারিত দেখুন'}</span>
+                        <ArrowRight className="w-2.5 h-2.5" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Banner Image Selection: Device Upload, Presets & URL */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 shadow-xs">
+                <span className="font-extrabold text-black block">ব্যানার ছবি নির্বাচন ও আপলোড</span>
+
+                {/* Device File Upload */}
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1 shrink-0">
+                    <Upload className="w-3.5 h-3.5 text-blue-600" />
+                    <span>ডিভাইস থেকে আপলোড:</span>
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageFileUpload(e, setNewBannerImageUrl)}
+                    className="w-full text-xs text-slate-700 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-extrabold file:bg-slate-200 file:text-black hover:file:bg-slate-300 cursor-pointer"
+                  />
+                </div>
+
+                <input
+                  type="text"
+                  value={newBannerImageUrl}
+                  onChange={(e) => setNewBannerImageUrl(e.target.value)}
+                  placeholder="অথবা ছবির সরাসরি লিঙ্ক পেস্ট করুন (URL)"
+                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-black"
+                />
+
+                <span className="text-[10px] text-slate-700 font-bold block">বা প্রস্তুতকৃত আর্টওয়ার্ক থেকে ১-ক্লিকে নির্বাচন করুন:</span>
+                <div className="grid grid-cols-3 gap-1.5 max-h-32 overflow-y-auto">
+                  {PRESET_PRODUCT_IMAGES.map((p, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setNewBannerImageUrl(p.url);
+                        if (!newBannerTitle) setNewBannerTitle(p.label);
+                      }}
+                      className={`p-1 rounded-lg border text-left flex items-center gap-1.5 cursor-pointer ${
+                        newBannerImageUrl === p.url ? 'border-black bg-white ring-1 ring-black' : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      <img src={p.url} alt="" className="w-6 h-6 rounded object-cover shrink-0" />
+                      <span className="text-[9px] font-bold text-black truncate">{p.label.split(' ')[0]}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
-                <label className="text-slate-800 font-bold block mb-1">ব্যানার শিরোনাম (Title) *</label>
+                <label className="text-slate-800 font-bold block mb-1">ব্যানার শিরোনাম (Title) <span className="text-rose-600 font-black">*</span></label>
                 <input
                   type="text"
                   value={newBannerTitle}
@@ -2457,7 +2812,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-slate-800 font-bold block mb-1">সাবটাইটেল / বিবরণ</label>
+                <label className="text-slate-800 font-bold block mb-1">সাবটাইটেল / বিবরণ (ঐচ্ছিক)</label>
                 <input
                   type="text"
                   value={newBannerSubtitle}
@@ -2469,7 +2824,7 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-slate-800 font-bold block mb-1">ব্যাজ ট্যাগ</label>
+                  <label className="text-slate-800 font-bold block mb-1">ব্যাজ ট্যাগ (ঐচ্ছিক)</label>
                   <input
                     type="text"
                     value={newBannerBadge}
@@ -2486,9 +2841,9 @@ export const AdminDashboard: React.FC = () => {
                     onChange={(e: any) => setNewBannerActionTab(e.target.value)}
                     className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black font-semibold shadow-xs"
                   >
+                    <option value="home">হোম প্রোডাক্টে স্ক্রল করবে</option>
                     <option value="deposit">ডিপোজিট পেজে যাবে (টাকা যোগ)</option>
                     <option value="orders">অর্ডার কিউতে যাবে</option>
-                    <option value="home">হোম প্রোডাক্টে স্ক্রল করবে</option>
                   </select>
                 </div>
               </div>
@@ -2514,60 +2869,21 @@ export const AdminDashboard: React.FC = () => {
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-black shadow-xs font-mono"
                 />
               </div>
-
-              {/* Banner Image with Presets */}
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 shadow-xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-black block">ব্যানার ব্যাকগ্রাউন্ড ছবি</span>
-                  <img
-                    src={newBannerImageUrl}
-                    alt="Preview"
-                    className="w-12 h-7 rounded object-cover border border-slate-300"
-                  />
-                </div>
-                <input
-                  type="text"
-                  value={newBannerImageUrl}
-                  onChange={(e) => setNewBannerImageUrl(e.target.value)}
-                  placeholder="ছবির লিংক (URL)"
-                  className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-black"
-                />
-
-                <span className="text-[10px] text-slate-700 font-bold block">বা ছবি নির্বাচন করুন:</span>
-                <div className="grid grid-cols-3 gap-1.5 max-h-28 overflow-y-auto">
-                  {PRESET_PRODUCT_IMAGES.map((p, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setNewBannerImageUrl(p.url)}
-                      className={`p-1 rounded-lg border text-left flex items-center gap-1.5 cursor-pointer ${
-                        newBannerImageUrl === p.url ? 'border-black bg-white ring-1 ring-black' : 'border-slate-300 bg-white'
-                      }`}
-                    >
-                      <img src={p.url} alt="" className="w-6 h-6 rounded object-cover" />
-                      <span className="text-[9px] font-bold text-black truncate">{p.label.split(' ')[0]}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
             <div className="flex gap-2 pt-2">
               <button
                 onClick={() => {
-                  if (!newBannerTitle) {
-                    showToast('ব্যানারের শিরোনাম প্রদান করুন।', 'error');
-                    return;
-                  }
+                  const finalTitle = newBannerTitle.trim() || 'স্পেশাল অফার';
                   const banner: HomeBanner = {
                     id: 'banner_' + Date.now(),
-                    title: newBannerTitle,
-                    subtitle: newBannerSubtitle,
-                    badge: newBannerBadge || 'স্পেশাল অফার',
-                    imageUrl: newBannerImageUrl || '/src/assets/images/ff_friday_offer_1790099054219.jpg',
+                    title: finalTitle,
+                    subtitle: newBannerSubtitle.trim(),
+                    badge: newBannerBadge.trim() || 'স্পেশাল অফার',
+                    imageUrl: newBannerImageUrl || '/images/ff_friday_offer_1790099054219.jpg',
                     linkUrl: newBannerLinkUrl.trim(),
                     actionTab: newBannerActionTab,
-                    actionText: newBannerActionText || 'বিস্তারিত দেখুন',
+                    actionText: newBannerActionText || 'অফার দেখুন',
                     isActive: true
                   };
                   addBanner(banner);
@@ -2575,6 +2891,7 @@ export const AdminDashboard: React.FC = () => {
                   setNewBannerTitle('');
                   setNewBannerSubtitle('');
                   setNewBannerLinkUrl('');
+                  showToast('নতুন ব্যানার সফলভাবে প্রকাশ করা হয়েছে!', 'success');
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-extrabold text-xs cursor-pointer shadow-xs"
               >
